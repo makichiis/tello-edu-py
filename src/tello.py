@@ -5,6 +5,7 @@ import asyncio
 
 
 DEFAULT_TELLO_IP = '192.168.10.1'
+DEFAULT_TIMEOUT = 5.0
 CONTROL_PORT = 8889
 STATE_PORT = 8890
 
@@ -13,10 +14,11 @@ class TelloProtocol(asyncio.DatagramProtocol):
     DatagramHandlerFn: TypeAlias = Callable[[asyncio.Future, bytes], None]
 
 
-    __slots__ = 'future', 'datagram_handler'
+    __slots__ = 'future', 'timeout', 'datagram_handler'
 
 
-    def __init__(self, datagram_handler: DatagramHandlerFn) -> None:
+    def __init__(self, timeout: float, datagram_handler: DatagramHandlerFn) -> None:
+        self.timeout = timeout
         self.future = asyncio.Future()
         self.datagram_handler = datagram_handler
 
@@ -32,8 +34,12 @@ class TelloProtocol(asyncio.DatagramProtocol):
 
     async def wait_response(self) -> asyncio.Future:
         try:
-            return await self.future
+            return await asyncio.wait_for(self.future, timeout=self.timeout)
         
+        except asyncio.TimeoutError as e:
+            self.future.set_exception(e)
+            return await self.future
+
         finally:
             self.future = asyncio.Future()
 
@@ -81,13 +87,16 @@ class Drone:
 
 
 @asynccontextmanager
-async def conn(ip: str = DEFAULT_TELLO_IP) -> AsyncGenerator[Drone, None]:
+async def conn(
+    ip: str = DEFAULT_TELLO_IP,
+    timeout=DEFAULT_TIMEOUT,
+) -> AsyncGenerator[Drone, None]:
     loop = asyncio.get_running_loop()
 
     cmd_transport, cmd_protocol = await loop.create_datagram_endpoint(
-        lambda: TelloProtocol(command_datagram_received),
-        local_addr=(('0.0.0.0', CONTROL_PORT)),
+        lambda: TelloProtocol(timeout, command_datagram_received),
         remote_addr=((ip, CONTROL_PORT)),
+        local_addr=(('0.0.0.0', CONTROL_PORT)),
     )
         
     async def send(command: str) -> str:
@@ -96,7 +105,7 @@ async def conn(ip: str = DEFAULT_TELLO_IP) -> AsyncGenerator[Drone, None]:
 
 
     state_transport, state_protocol = await loop.create_datagram_endpoint(
-        lambda: TelloProtocol(state_datagram_received),
+        lambda: TelloProtocol(timeout, state_datagram_received),
         local_addr=(('0.0.0.0', STATE_PORT)),
     )
 
