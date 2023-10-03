@@ -1,65 +1,112 @@
-from typing import AsyncGenerator, TypeAlias, Awaitable, Self
+from typing import AsyncGenerator, TypeAlias, Awaitable, Callable
 from contextlib import asynccontextmanager
+from state import DroneState
 import asyncio
 
 
 DEFAULT_TELLO_IP = '192.168.10.1'
 CONTROL_PORT = 8889
-
-
-DroneAddr: TypeAlias = tuple[str, int]
+STATE_PORT = 8890
 
 
 class TelloProtocol(asyncio.DatagramProtocol):
-    __slots__ = 'future'
+    DatagramHandlerFn: TypeAlias = Callable[[asyncio.Future, bytes], None]
 
-    def __init__(self) -> None:
+
+    __slots__ = 'future', 'datagram_handler'
+
+
+    def __init__(self, datagram_handler: DatagramHandlerFn) -> None:
         self.future = asyncio.Future()
+        self.datagram_handler = datagram_handler
 
-    def datagram_received(self, data: bytes, addr: DroneAddr) -> None:
-        _ = addr
-        if not self.future.done():
-            self.future.set_result(data.decode())
 
     def error_received(self, exc: Exception) -> None:
         if not self.future.done():
             self.future.set_exception(exc)
 
+
+    def datagram_received(self, data: bytes, _) -> None:
+        self.datagram_handler(self.future, data)
+
+
     async def wait_response(self) -> asyncio.Future:
         try:
             return await self.future
-
+        
         finally:
             self.future = asyncio.Future()
 
 
-class Drone:
-    send_command: callable[[Self, str], Awaitable[str]]
+def command_datagram_received(future: asyncio.Future, data: bytes) -> None:
+    if future.done():
+        return
+        
+    match data.decode():
+        case decoded if decoded.startswith('unknown command'):
+            cmd = decoded.strip('unknown command: ')
+            future.set_exception(ValueError(f'Unknown command: {cmd}'))
+            
+        case decoded if decoded.startswith('error'):
+            future.set_exception(RuntimeError('Drone reported an error'))
+        
+        case decoded:
+            future.set_result(decoded)
 
-    def __init__(self, ip: str) -> None:
+
+def state_datagram_received(future: asyncio.Future, data: bytes) -> None:
+    if future.done():
+        return
+        
+    try:
+        state = DroneState.from_raw(data.decode())
+        future.set_result(state)
+            
+    except Exception as e:
+        future.set_exception(e)
+
+
+class Drone:
+    SendFn: TypeAlias = Callable[[str], Awaitable[str]]
+    StateFn: TypeAlias = Callable[[None], Awaitable[str]]
+
+
+    __slots__ = 'ip', 'send', 'state'
+
+
+    def __init__(self, ip: str, send: SendFn, state: StateFn) -> None:
         self.ip = ip
+        self.send = send
+        self.state = state
 
 
 @asynccontextmanager
-async def conn(drone_ip: str = DEFAULT_TELLO_IP) -> AsyncGenerator[Drone, None]:
-    '''Instantiates and injects a Drone class with the necessary methods'''
-    
+async def conn(ip: str = DEFAULT_TELLO_IP) -> AsyncGenerator[Drone, None]:
     loop = asyncio.get_running_loop()
 
-    transport, protocol = await loop.create_datagram_endpoint(
-        TelloProtocol,
-        local_addr=(('0.0.0.0', CONTROL_PORT))
+    cmd_transport, cmd_protocol = await loop.create_datagram_endpoint(
+        lambda: TelloProtocol(command_datagram_received),
+        local_addr=(('0.0.0.0', CONTROL_PORT)),
+        remote_addr=((ip, CONTROL_PORT)),
     )
         
-    async def send_command(self: Drone, command: str) -> str:
-        transport.sendto(command.encode(), (self.ip, CONTROL_PORT))
-        return await protocol.wait_response()
-    
-    drone = Drone(drone_ip)
-    drone.send_command = send_command.__get__(drone, Drone)
+    async def send(command: str) -> str:
+        cmd_transport.sendto(command.encode())
+        return await cmd_protocol.wait_response()
 
+
+    state_transport, state_protocol = await loop.create_datagram_endpoint(
+        lambda: TelloProtocol(state_datagram_received),
+        local_addr=(('0.0.0.0', STATE_PORT)),
+    )
+
+    async def state() -> DroneState:
+        return await state_protocol.wait_response()
+    
     try:
-        yield drone
+        yield Drone(ip, send, state)
 
     finally:
-        transport.close()
+        cmd_transport.close()
+        state_transport.close()
+        

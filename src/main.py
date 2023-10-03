@@ -2,12 +2,29 @@
 
 import asyncio
 import tello
+import cv2
 
 async def main() -> None:
+    cap = cv2.VideoCapture('udp://@0.0.0.0:1111')
+    
     async with tello.conn() as drone:
-        print(await drone.send_command('command'))
-        print(await drone.send_command('battery?'))
+        await drone.send('command')
+        print(await drone.send('streamon'))
 
+        while True:
+            ret, frame = cap.read()
+            if not ret:
+                break
+
+            cv2.imshow('Tello Video Stream', frame)
+
+            if cv2.waitKey(1) & 0xFF == ord('q'):
+                break
+
+        await drone.send('streamoff')
+
+    cap.release()
+    cv2.destroyAllWindows()
 
 if __name__ == '__main__':
     try:
