@@ -29,7 +29,7 @@ async def main() -> None:
                 break
 
         finally:
-            pygame.quit()            
+            pygame.quit()
 
 
 if __name__ == '__main__':

@@ -34,20 +34,20 @@ class DroneState:
     def from_raw(state: str) -> Self | None:
         if not state:
             return None
-        
+
         def parse(value: str) -> Value:
             if ',' in value:
                 return tuple(map(int, value.split(',')))
-            
+
             elif '.' in value:
                 return float(value)
 
             else:
                 return int(value)
-        
+
         attrs = {}
         for token in state.strip().strip(';').split(';'):
             name, value = token.split(':')
             attrs[name] = parse(value)
-        
+
         return Self(**attrs)

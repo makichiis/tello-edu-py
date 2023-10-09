@@ -19,13 +19,13 @@ class Protocol(asyncio.DatagramProtocol):
 
     __slots__ = ('queue', 'datagram_handler')
 
-    
+
     def __init__(self, datagram_handler: DatagramHandlerFn) -> None:
         self.queue = asyncio.Queue()
         self.datagram_handler = datagram_handler
 
-    
-    def datagram_received(self, data: bytes, _) -> None:  
+
+    def datagram_received(self, data: bytes, _) -> None:
         with suppress(asyncio.exceptions.CancelledError):
             self.datagram_handler(self.queue, data)
 
@@ -57,7 +57,7 @@ class Drone:
         try:
             with av.open('udp://@0.0.0.0:11111') as container:
                 for frame in container.decode(video=0):
-                    yield frame.to_ndarray(format='bgr24')              
+                    yield frame.to_ndarray(format='bgr24')
 
         finally:
             print('Ending Stream', await self.send('streamoff'))
@@ -91,7 +91,7 @@ async def conn(ip: str = DEFAULT_TELLO_IP) -> AsyncContextManager[Drone]:
         return await cmd_protocol.queue.get()
 
     try:
-        drone = Drone(addr, send)        
+        drone = Drone(addr, send)
         await drone.send('command')
 
         keepalive_task = asyncio.create_task(keepalive(drone))
