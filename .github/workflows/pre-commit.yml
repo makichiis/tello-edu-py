@@ -29,12 +29,12 @@ jobs:
 
             - name: Run Ruff
               run: |
-                ruff src/
+                ruff tello-edu-protocol/
 
             - name: Run mypy
               run: |
-                mypy src/
+                mypy tello-edu-protocol/
 
             - name: Run Pytest
               run: |
-                pytest src/
+                pytest tello-edu-protocol/
