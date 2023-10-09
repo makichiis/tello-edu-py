@@ -1,36 +1,37 @@
-#!/usr/bin/python3
+#!/usr/bin/python
 
-
+from tello import conn
 import asyncio
-import tello
-import cv2
+import pygame
 import sys
-import av
 
 
 async def main() -> None:
-    
-    async with tello.conn() as drone:
-        await drone.send('command')
-        await drone.send('streamon')
-
-        await asyncio.sleep(5)
+    async with conn() as drone:
+        pygame.init()
+        flags = pygame.DOUBLEBUF | pygame.OPENGL
+        screen = pygame.display.set_mode((640, 480), flags)
+        pygame.display.set_caption('Drone Feed')
 
         try:
-            container = av.open('udp://@0.0.0.0:11111')
+            async for frame in drone.video_feed():
+                frame = pygame.surfarray.make_surface(frame)
 
-            for frame in container.decode(video=0):
-                img = frame.to_ndarray(format='bgr24')
-                cv2.imshow('Tello Stream', img)
+                screen.blit(frame, (0, 0))
+                pygame.display.flip()
 
-                if cv2.waitKey(1) & 0xFF == ord('q'):
-                    break
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        break
+                else:
+                    continue
+
+                break
 
         finally:
-            cv2.destroyAllWindows()
-            await drone.send('streamoff')
+            pygame.quit()            
 
-    
+
 if __name__ == '__main__':
     try:
         asyncio.run(main())
