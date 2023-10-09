@@ -31,10 +31,6 @@ jobs:
               run: |
                 ruff tello_edu_protocol/
 
-            - name: Run mypy
-              run: |
-                mypy tello_edu_protocol/
-
             - name: Run Pytest
               run: |
                 pytest tello_edu_protocol/

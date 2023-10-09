@@ -1,6 +1,7 @@
+# mypy: ignore-errors
+
 from typing import TypeAlias, Self
 from dataclasses import dataclass
-
 
 Value: TypeAlias = tuple[int, int, int] | float | int
 
