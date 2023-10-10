@@ -1,7 +1,6 @@
-# mypy: ignore-errors
-
 from typing import TypeAlias, Self
 from dataclasses import dataclass
+
 
 Value: TypeAlias = tuple[int, int, int] | float | int
 
@@ -31,24 +30,24 @@ class DroneState:
     agz: float
 
 
-    @staticmethod
-    def from_raw(state: str) -> Self | None:
+    @classmethod
+    def from_raw(cls, state: str) -> Self | None:
         if not state:
             return None
-
+        
         def parse(value: str) -> Value:
             if ',' in value:
                 return tuple(map(int, value.split(',')))
-
+            
             elif '.' in value:
                 return float(value)
 
             else:
                 return int(value)
-
+        
         attrs = {}
         for token in state.strip().strip(';').split(';'):
             name, value = token.split(':')
             attrs[name] = parse(value)
-
-        return Self(**attrs)
+        
+        return cls(**attrs)

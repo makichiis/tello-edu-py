@@ -23,7 +23,6 @@ STATE_PORT = 8890
 VIDEO_PORT = 11111
 VIDEO_RESOLUTION = (640, 480)
 
-
 class Drone:
     SendFn: TypeAlias = Callable[[str], Awaitable[str]]
     StateFn: TypeAlias = Callable[[None], Awaitable[DroneState]]
