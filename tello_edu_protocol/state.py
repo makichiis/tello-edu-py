@@ -30,8 +30,8 @@ class DroneState:
     agz: float
 
 
-    @staticmethod
-    def from_raw(state: str) -> Self | None:
+    @classmethod
+    def from_raw(cls, state: str) -> Self | None:
         if not state:
             return None
         
@@ -50,4 +50,4 @@ class DroneState:
             name, value = token.split(':')
             attrs[name] = parse(value)
         
-        return Self(**attrs)
+        return cls(**attrs)
