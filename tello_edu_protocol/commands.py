@@ -28,8 +28,8 @@ class FlipDirection(StrEnum):
 
 
 class RTFM(Exception):
-    def __init__(self, value) -> None:
-        self.value = 'Usage: ' + value
+    def __init__(self, message) -> None:
+        super().__init__(f'\nUsage: {message}')
 
 
 def ok_err_fmt(resp: str) -> None:
@@ -83,7 +83,8 @@ def up(x: int) -> Tuple[str, Fmt]:
         20 <= x <= 500
     '''
 
-    if 20 <= x <= 500:
+
+    if not 20 <= x <= 500:
         raise RTFM(up.__doc__)
 
     return f'up {x}', ok_err_fmt
@@ -95,7 +96,7 @@ def down(x: int) -> Tuple[str, Fmt]:
         20 <= x <= 500
     '''
 
-    if 20 <= x <= 500:
+    if not 20 <= x <= 500:
         raise RTFM(down.__doc__)
     
     return f'down {x}', ok_err_fmt
@@ -107,7 +108,7 @@ def left(x: int) -> Tuple[str, Fmt]:
         20 <= x <= 500
     '''
     
-    if 20 <= x <= 500:
+    if not 20 <= x <= 500:
         raise RTFM(left.__doc__)
 
     return f'left {x}', ok_err_fmt
@@ -119,7 +120,7 @@ def right(x: int) -> Tuple[str, Fmt]:
         20 <= x <= 500
     '''
 
-    if 20 <= x <= 500:
+    if not 20 <= x <= 500:
         raise RTFM(right.__doc__)
 
     return f'right {x}', ok_err_fmt
@@ -131,7 +132,7 @@ def forward(x: int) -> Tuple[str, Fmt]:
         20 <= x <= 500
     '''
 
-    if 20 <= x <= 500:
+    if not 20 <= x <= 500:
         raise RTFM(forward.__doc__)
 
     return f'forward {x}', ok_err_fmt
@@ -143,7 +144,7 @@ def back(x: int) -> Tuple[str, Fmt]:
         20 <= x <= 500
     '''
 
-    if 20 <= x <= 500:
+    if not 20 <= x <= 500:
         raise RTFM(forward.__doc__)
 
     return f'back {x}', ok_err_fmt
@@ -155,7 +156,7 @@ def cw(x: int) -> Tuple[str, Fmt]:
         1 <= x <= 360
     '''
 
-    if 1 <= x <= 360:
+    if not 1 <= x <= 360:
         raise RTFM(cw.__doc__)
 
     return f'cw {x}', ok_err_fmt
@@ -167,7 +168,7 @@ def ccw(x: int) -> Tuple[str, Fmt]:
         1 <= x <= 360
     '''
 
-    if 1 <= x <= 360:
+    if not 1 <= x <= 360:
         raise RTFM(ccw.__doc__)
 
     return f'ccw {x}', ok_err_fmt

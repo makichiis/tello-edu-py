@@ -35,7 +35,6 @@ VIDEO_RESOLUTION = (640, 480)
 
 class Drone:
     '''The user api for interacting with the drone.'''
-    '''TODO (Sarah): Translate the sdk commands into Drone methods'''
     
     SendFn: TypeAlias = Callable[[str], Awaitable[str]]
     StateFn: TypeAlias = Callable[[], Awaitable[DroneState]]
@@ -62,7 +61,7 @@ class Drone:
                        determine if this is software or hardware
         '''
 
-        # Probably hardware
+        # Buy better drones pls :)
 
         await self.command(streamon)
 
@@ -110,11 +109,15 @@ class Protocol(asyncio.DatagramProtocol):
 
 
 def cmd_datagram_handler(proto: Protocol, data: bytes, _: Drone.Address) -> None:
+    '''Decodes incoming data into a response'''
+    
     decoded = data.decode('ASCII').strip()
     proto.queue.put_nowait(decoded)
 
 
 def state_datagram_handler(proto: Protocol, data: bytes, _: Drone.Address) -> None:
+    '''Serializes an incoming response to a DroneState'''
+
     state = DroneState.from_raw(data.decode('ASCII').strip())
     proto.queue.put_nowait(state)
 
@@ -155,12 +158,14 @@ async def conn(
     loop = asyncio.get_running_loop()
     addr = (ip, CONTROL_PORT)
 
+    # Responsible for sending and receiving UDP data to and from the drone
     cmd_transport, cmd_protocol = await loop.create_datagram_endpoint(
         lambda: Protocol(cmd_datagram_handler),
         remote_addr=(addr),
         local_addr=((DEFAULT_LOCALHOST, CONTROL_PORT)),
     )
 
+    # Responsible for receiving state UDP data from the drone
     state_transport, state_protocol = await loop.create_datagram_endpoint(
         lambda: Protocol(state_datagram_handler),
         local_addr=((DEFAULT_LOCALHOST, STATE_PORT)),
