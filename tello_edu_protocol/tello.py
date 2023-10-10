@@ -4,19 +4,29 @@ from typing import (
     TypeAlias,
     Awaitable,
     Callable,
+    Optional,
     Tuple,
+    Self,
+    Any,
 )
 import contextlib
 import asyncio
 import av
 
-
 from .state import DroneState
+from .commands import (
+    streamoff,
+    streamon,
+    get_time,
+    command,
+    Command,
+    Fmt,
+)
 
 
 DEFAULT_TELLO_IP = '192.168.10.1'
 DEFAULT_LOCALHOST = '0.0.0.0'
-DEFAULT_TIMEOUT = 5.0
+DEFAULT_TIMEOUT = 10
 CONTROL_PORT = 8889
 STATE_PORT = 8890
 VIDEO_PORT = 11111
@@ -27,8 +37,8 @@ class Drone:
     '''The user api for interacting with the drone.'''
     '''TODO (Sarah): Translate the sdk commands into Drone methods'''
     
-    SendFn: TypeAlias = Callable[[str, float], Awaitable[str]]
-    StateFn: TypeAlias = Callable[[float], Awaitable[DroneState]]
+    SendFn: TypeAlias = Callable[[str], Awaitable[str]]
+    StateFn: TypeAlias = Callable[[], Awaitable[DroneState]]
     Address: TypeAlias = Tuple[str, int]
 
     __slots__ = ('addr', 'send', 'state')
@@ -54,7 +64,7 @@ class Drone:
 
         # Probably hardware
 
-        await self.send('streamon')
+        await self.command(streamon)
 
         try:
             with av.open('udp://@0.0.0.0:11111') as container:
@@ -62,15 +72,30 @@ class Drone:
                     yield frame.to_ndarray(format='bgr24')              
 
         finally:
-            await self.send('streamoff')
+            await self.command(streamoff)
 
+
+    async def command(
+        self,
+        cmd: Command,
+        *args,
+        timeout: float = DEFAULT_TIMEOUT,
+        formatter: Optional[Fmt] = None,
+        **kwargs
+    ) -> Any:
+        msg, fmt = cmd(*args, **kwargs)
+        if formatter is not None:
+            fmt = formatter
+
+        return fmt(await self.send(msg, timeout=timeout))
+        
 
 class Protocol(asyncio.DatagramProtocol):
     '''The `low level` drone communication protocol'''
 
     Value: TypeAlias = str | DroneState
     Queue: TypeAlias = asyncio.Queue[Value]
-    DatagramHandlerFn: TypeAlias = Callable[[str], Value]
+    DatagramHandlerFn: TypeAlias = Callable[[Self, bytes, Drone.Address], None]
 
     __slots__ = ('queue', 'datagram_handler')
     
@@ -78,24 +103,18 @@ class Protocol(asyncio.DatagramProtocol):
         self.queue = asyncio.Queue()
         self.datagram_handler = datagram_handler
 
-    def datagram_received(self, data: bytes, _) -> None:
-        self.queue.put_nowait(self.datagram_handler(data))
+    def datagram_received(self, data: bytes, addr: Drone.Address) -> None:
+        self.datagram_handler(self, data, addr)
 
 
-def cmd_datagram_handler(data: bytes) -> str:
-    decoded = data.decode(encoding='ASCII').strip()
-    
-    if decoded.starts_with('unknown command: '):
-        cmd = decoded.lstrip('unknown command: ')
-        raise ValueError(f'Unknown command: {cmd}')
-    
-    elif decoded.starts_with('error'):
-        raise RuntimeError('Drone reported an error')
-    
-    return decoded
+def cmd_datagram_handler(proto: Protocol, data: bytes, _: Drone.Address) -> None:
+    decoded = data.decode('ASCII').strip()
+    proto.queue.put_nowait(decoded)
 
-def state_datagram_handler(data: bytes) -> DroneState:
-    return DroneState.from_raw(data.decode().strip())
+
+def state_datagram_handler(proto: Protocol, data: bytes, _: Drone.Address) -> None:
+    state = DroneState.from_raw(data.decode('ASCII').strip())
+    proto.queue.put_nowait(state)
 
 
 def keepalive(drone: Drone) -> Callable[[], Awaitable[None]]:
@@ -109,20 +128,24 @@ def keepalive(drone: Drone) -> Callable[[], Awaitable[None]]:
     async def task() -> None:
         with contextlib.suppress(asyncio.CancelledError):
             while True:
-                await drone.send('time?')
+                await drone.command(get_time)
                 await asyncio.sleep(10)
 
     keepalive_task = asyncio.create_task(task())
 
     async def stop() -> None:
-        keepalive_task.cancel()
-        await asyncio.wait({keepalive_task})
+        with contextlib.suppress(asyncio.TimeoutError):
+            keepalive_task.cancel()
+            await asyncio.wait({keepalive_task})
 
     return stop
 
 
 @contextlib.asynccontextmanager
-async def conn(ip: str = DEFAULT_TELLO_IP) -> AsyncContextManager[Drone]:
+async def conn(
+        ip: str = DEFAULT_TELLO_IP, 
+        *, timeout: float=DEFAULT_TIMEOUT
+) -> AsyncContextManager[Drone]:
     '''
     The context manager for a drone connection.
     '''
@@ -142,20 +165,20 @@ async def conn(ip: str = DEFAULT_TELLO_IP) -> AsyncContextManager[Drone]:
     )
 
     # The generated `send method` for the Drone class
-    async def send(*command: str, timeout: float = DEFAULT_TIMEOUT) -> str:
+    async def send(msg: str, *, timeout: float = timeout) -> str:
         async with asyncio.timeout(timeout):
-            cmd_transport.sendto(command.encode(format='utf_8'))
+            cmd_transport.sendto(msg.encode('utf_8'))
             return await cmd_protocol.queue.get()
     
     # The generated `state method` for the Drone class
-    async def state(*, timeout: float = DEFAULT_TIMEOUT) -> DroneState:
+    async def state(*, timeout: float = timeout) -> DroneState:
         async with asyncio.timeout(timeout):
             return await state_protocol.queue.get()
 
     try:
         drone = Drone(addr, send, state)
-        keepalive_stop = keepalive(drone) 
-        await drone.send('command')
+        keepalive_stop = keepalive(drone)
+        await drone.command(command)
 
         yield drone
 

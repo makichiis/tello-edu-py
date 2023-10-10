@@ -1,17 +1,19 @@
-from typing import TypeAlias, Self
+from typing import TypeAlias, Tuple, Self
 from dataclasses import dataclass
 
 
-Value: TypeAlias = tuple[int, int, int] | float | int
+Value: TypeAlias = Tuple[int, int, int] | float | int
 
 
 @dataclass(slots=True, frozen=True)
 class DroneState:
+    '''Structure for storing the drone state'''
+
     mid: int
     x: int
     y: int
     z: int
-    mpry: tuple[int, int, int]
+    mpry: Tuple [int, int, int]
     pitch: int
     roll: int
     yaw: int
@@ -29,7 +31,6 @@ class DroneState:
     agy: float
     agz: float
 
-
     @classmethod
     def from_raw(cls, state: str) -> Self | None:
         if not state:
@@ -46,7 +47,7 @@ class DroneState:
                 return int(value)
         
         attrs = {}
-        for token in state.strip().strip(';').split(';'):
+        for token in state.strip(';').split(';'):
             name, value = token.split(':')
             attrs[name] = parse(value)
         
