@@ -33,4 +33,4 @@ jobs:
 
             - name: Run Pytest
               run: |
-                pytest tello_edu_protocol/
+                pytest tests/
