@@ -83,6 +83,8 @@ class Drone:
         formatter: Optional[Fmt] = None,
         **kwargs
     ) -> Any:
+        '''A wrapper for running drone commands and retreiving their results.'''
+
         msg, fmt = cmd(*args, **kwargs)
         if formatter is not None:
             fmt = formatter

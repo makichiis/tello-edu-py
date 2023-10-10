@@ -1,3 +1,11 @@
+'''
+This module contains commands for interacting with the drone.
+A command contains two aspects:
+    1. The string representation of the command to send
+    2. A formatter that handles the string response from the drone.
+'''
+
+
 from typing import (
     TypeAlias,
     Callable,
@@ -19,6 +27,11 @@ class FlipDirection(StrEnum):
     Backward = 'b'
 
 
+class RTFM(Exception):
+    def __init__(self, value) -> None:
+        self.value = 'Usage: ' + value
+
+
 def ok_err_fmt(resp: str) -> None:
     if resp.startswith('unknown command: '):
         cmd = resp.lstrip('unknown command: ')
@@ -29,66 +42,175 @@ def ok_err_fmt(resp: str) -> None:
 
 
 def command() -> Tuple[str, Fmt]:
+    '''Enter SDK mode.'''
+    
     return 'command', ok_err_fmt
 
 
 def takeoff() -> Tuple[str, Fmt]:
+    '''Auto takeoff.'''
+
     return 'takeoff', ok_err_fmt
 
 
 def land() -> Tuple[str, Fmt]:
+    '''Auto landing.'''
+
     return 'land', ok_err_fmt
 
 
 def streamon() -> Tuple[str, Fmt]:
+    '''Enable video stream.'''
+    
     return 'streamon', ok_err_fmt
 
 
 def streamoff() -> Tuple[str, Fmt]:
+    '''Disable video stream.'''
+
     return 'streamoff', ok_err_fmt
 
 
 def emergency() -> Tuple[str, Fmt]:
+    '''Stop motors immediately.'''
+
     return 'emergency', ok_err_fmt
 
 
 def up(x: int) -> Tuple[str, Fmt]:
+    '''
+    Ascend by {x} cm, where
+        20 <= x <= 500
+    '''
+
+    if 20 <= x <= 500:
+        raise RTFM(up.__doc__)
+
     return f'up {x}', ok_err_fmt
 
 
 def down(x: int) -> Tuple[str, Fmt]:
+    '''
+    Descend by {x} cm, where
+        20 <= x <= 500
+    '''
+
+    if 20 <= x <= 500:
+        raise RTFM(down.__doc__)
+    
     return f'down {x}', ok_err_fmt
 
 
 def left(x: int) -> Tuple[str, Fmt]:
+    '''
+    Fly left for {x} cm, where
+        20 <= x <= 500
+    '''
+    
+    if 20 <= x <= 500:
+        raise RTFM(left.__doc__)
+
     return f'left {x}', ok_err_fmt
 
 
 def right(x: int) -> Tuple[str, Fmt]:
+    '''
+    Fly right for {x} cm, where
+        20 <= x <= 500
+    '''
+
+    if 20 <= x <= 500:
+        raise RTFM(right.__doc__)
+
     return f'right {x}', ok_err_fmt
 
 
 def forward(x: int) -> Tuple[str, Fmt]:
+    '''
+    Fly forward for {x} cm, where
+        20 <= x <= 500
+    '''
+
+    if 20 <= x <= 500:
+        raise RTFM(forward.__doc__)
+
     return f'forward {x}', ok_err_fmt
 
 
 def back(x: int) -> Tuple[str, Fmt]:
+    '''
+    Fly backward for {x} cm, where
+        20 <= x <= 500
+    '''
+
+    if 20 <= x <= 500:
+        raise RTFM(forward.__doc__)
+
     return f'back {x}', ok_err_fmt
 
 
 def cw(x: int) -> Tuple[str, Fmt]:
+    '''
+    Rotate {x} degrees clockwise, where
+        1 <= x <= 360
+    '''
+
+    if 1 <= x <= 360:
+        raise RTFM(cw.__doc__)
+
     return f'cw {x}', ok_err_fmt
 
 
 def ccw(x: int) -> Tuple[str, Fmt]:
+    '''
+    Rotate {x} degrees counterclockwise, where
+        1 <= x <= 360
+    '''
+
+    if 1 <= x <= 360:
+        raise RTFM(ccw.__doc__)
+
     return f'ccw {x}', ok_err_fmt
 
 
 def flip(direction: FlipDirection) -> Tuple[str, Fmt]:
+    '''Flip in {direction} direction.'''
+
     return f'flip {direction}', ok_err_fmt
 
 
-def go(x: int, y: int, z: int, speed: int, mid: Optional[int]) -> Tuple[str, Fmt]:
+def go(
+    x: int,
+    y: int,
+    z: int,
+    speed: int,
+    mid: Optional[int] = None,
+) -> Tuple[str, Fmt]:
+    '''
+    Fly to {x} {y} {z} at {speed}(cm/s).
+    If {mid} is provided, {x} {y} and {z} are relative to Mission Pad: {mid}, where
+        10 <= speed <= 100
+        -500 <= x <= 500
+        -500 <= y <= 500
+        -500 <= z <= 500
+        1 <= mid <= 8
+
+    Note: {x} {y} and {z} cannot be set between -20, 20 simultaneously.
+    '''
+
+    if not all(lambda value: -500 <= value <= 500, (x, y, z)):
+        raise RTFM(go.__doc__)
+
+    if all(lambda value: -20 <= value <= 20, (x, y, z)):
+        raise RTFM(go.__doc__)
+    
+    if mid and not 1 <= mid <= 8:
+        raise RTFM(go.__doc__)
+
+    if not 10 <= speed <= 100:
+        raise RTFM(go.__doc__)
+
+
     fmt = f'go {x} {y} {z} {speed}'
     if mid is not None:
         fmt += f' m{mid}'
@@ -97,8 +219,11 @@ def go(x: int, y: int, z: int, speed: int, mid: Optional[int]) -> Tuple[str, Fmt
 
 
 def stop() -> Tuple[str, Fmt]:
+    '''Hovers in the air.'''
+
     return 'stop'
 
+# TODO(Sarah): Do the roar / rest
 
 def curve(
     x1: int,
@@ -110,7 +235,7 @@ def curve(
     speed: int,
     mid: Optional[int],
 ) -> Tuple[str, Fmt]:
-    fmt = f'curve {x1} {y1} {x2} {y2} {z2} {speed}'
+    fmt = f'curve {x1} {y1} {z1} {x2} {y2} {z2} {speed}'
     if mid is not None:
         fmt += f' m{mid}'
 
