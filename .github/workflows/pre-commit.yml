@@ -29,9 +29,9 @@ jobs:
 
             - name: Run Ruff
               run: |
-                ruff tello_edu_protocol/
+                ruff .
 
             - name: Run Pytest
               run: |
                 pip install .
-                pytest tests/
+                pytest .
