@@ -108,14 +108,20 @@ class Protocol(asyncio.DatagramProtocol):
         self.datagram_handler(self, data, addr)
 
 
-def cmd_datagram_handler(proto: Protocol, data: bytes, _: Drone.Address) -> None:
+def cmd_datagram_handler(
+        proto: Protocol, 
+        data: bytes, 
+        _: Drone.Address) -> None:
     '''Decodes incoming data into a response'''
     
     decoded = data.decode('ASCII').strip()
     proto.queue.put_nowait(decoded)
 
 
-def state_datagram_handler(proto: Protocol, data: bytes, _: Drone.Address) -> None:
+def state_datagram_handler(
+        proto: Protocol, 
+        data: bytes, 
+        _: Drone.Address) -> None:
     '''Serializes an incoming response to a DroneState'''
 
     state = DroneState.from_raw(data.decode('ASCII').strip())
