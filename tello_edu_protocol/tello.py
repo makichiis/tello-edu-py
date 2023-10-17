@@ -125,7 +125,7 @@ def state_datagram_handler(
     state = DroneState.from_raw(data.decode('ASCII').strip())
     proto.queue.put_nowait(state)
 
-def dont() -> None:
+def dont(drone: Drone) -> None:
     '''DO NOT CRASH THE DRONE!'''
 
     drone.going_to_crash = False
@@ -145,7 +145,7 @@ def keepalive(drone: Drone) -> Callable[[], Awaitable[None]]:
                 await asyncio.sleep(10)
 
                 if drone.going_to_crash:
-                    dont()
+                    dont(drone)
 
 
     keepalive_task = asyncio.create_task(task())
