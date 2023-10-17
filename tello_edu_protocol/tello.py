@@ -38,9 +38,7 @@ class Drone:
     
     SendFn: TypeAlias = Callable[[str], Awaitable[str]]
     StateFn: TypeAlias = Callable[[], Awaitable[DroneState]]
-    Address: TypeAlias = Tuple[str, int]
-
-    __slots__ = ('addr', 'send', 'state')
+    going_to_crash: bool = False
 
     def __init__(self, addr: Address, send: SendFn, state: StateFn) -> None:
         '''
@@ -127,6 +125,10 @@ def state_datagram_handler(
     state = DroneState.from_raw(data.decode('ASCII').strip())
     proto.queue.put_nowait(state)
 
+def dont() -> None:
+    '''DO NOT CRASH THE DRONE!'''
+
+    drone.going_to_crash = False
 
 def keepalive(drone: Drone) -> Callable[[], Awaitable[None]]:
     '''
@@ -141,6 +143,10 @@ def keepalive(drone: Drone) -> Callable[[], Awaitable[None]]:
             while True:
                 await drone.command(get_time)
                 await asyncio.sleep(10)
+
+                if drone.going_to_crash:
+                    dont()
+
 
     keepalive_task = asyncio.create_task(task())
 
