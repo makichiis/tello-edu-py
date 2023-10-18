@@ -48,7 +48,7 @@ class Drone:
         connection manager to avoid coupling and ensure encapsulation.
 
         Funny how a more functional style solves problems that OOP makes
-        for itself. ¯\_(ツ)_/¯
+        for itself. ¯\\_(ツ)_/¯
         '''
 
         self.addr = addr
