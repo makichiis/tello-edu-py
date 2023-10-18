@@ -21,6 +21,7 @@ setting up a Tello EDU drone before proceeding.
 
 Examples of how the `tello-edu-protocol` library is used can be found
 under `examples/`.
+
 Simple example with movement:
 ```py
 import asyncio
