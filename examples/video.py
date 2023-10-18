@@ -1,6 +1,6 @@
 #!/usr/bin/python
 
-from tello import conn
+from tello_edu_protocol import conn
 import asyncio
 import pygame
 import sys
